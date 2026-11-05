@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JobMap AI: the map that tells you what to build next</title>
+<meta name="description" content="An AI agent that finds your skill gaps, picks one project to build next, suggests where to grow, and adapts your 7-day plan.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Abril+Fatface&display=swap" rel="stylesheet">
+<style>
+:root{--coral:#FF6F61;--head:#D63A2E;--link:#B3261E;--peach:#FFD5A1;--cream:#FFF6EE;--ink:#4A1810}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;color:var(--ink);font:16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;background:radial-gradient(circle at 50% 18%,#FFF6EE 0%,#FFE3D0 38%,#FFB59A 72%,#FF6F61 100%) fixed}
+main{max-width:1240px;margin:0 auto;padding:44px 20px 40px}
+h1{font:400 clamp(3rem,10vw,5.2rem)/.95 "Abril Fatface",Didot,"Bodoni 72",Georgia,serif;margin:0 0 10px;color:var(--head)}
+.sub{margin:0 0 24px;font-size:1.05rem;max-width:62ch}
+.layout{display:grid;grid-template-columns:270px minmax(0,1fr) 270px;gap:20px;align-items:start}
+.side,.mid,#out{display:flex;flex-direction:column;gap:20px}
+@media(max-width:980px){.layout{grid-template-columns:1fr}.mid{order:1}.left{order:2}.right{order:3}}
+.card{background:rgba(255,246,238,.94);border:2px solid var(--coral);border-radius:20px;padding:22px}
+.card.accent{background:var(--peach)}
+label{display:block;font-weight:600;margin:14px 0 6px}label:first-child{margin-top:0}
+input,textarea{width:100%;padding:10px 12px;border:2px solid var(--ink);border-radius:8px;font:inherit;background:#fff;color:var(--ink)}
+::placeholder{color:rgba(74,24,16,.6)}
+textarea{min-height:84px;resize:vertical}
+button{margin-top:16px;width:100%;padding:12px;border:0;border-radius:8px;background:var(--coral);color:#3A0F0A;font:700 1rem system-ui;cursor:pointer}
+button:disabled{opacity:.65;cursor:wait}
+:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+.err{margin-top:12px;font-weight:600}
+h2{font:400 1.6rem "Abril Fatface",Georgia,serif;margin:0 0 8px;color:var(--head)}
+h3{margin:18px 0 10px;font-size:1rem}
+.gaplist{list-style:none;margin:0;padding:0}
+.gaplist li{background:#fff;border:2px solid var(--ink);border-left:10px solid var(--coral);border-radius:0;padding:12px 14px;margin-bottom:10px;font-weight:600}
+.proj{font-size:1.2rem;margin-bottom:4px}
+.accent ul{margin:10px 0 0;padding-left:18px}
+.opps{list-style:none;margin:0;padding:0}
+.opps li{border-bottom:1px solid var(--coral);padding:10px 0;font-size:.95rem}.opps li:last-child{border:0}
+.tag{display:inline-block;background:var(--ink);color:var(--peach);border-radius:99px;padding:0 10px;font-size:.75rem;margin-bottom:4px}
+.opps a{color:var(--link);font-weight:600;font-size:.88rem}
+.small{font-size:.84rem;opacity:.85;margin:8px 0 0}
+.route{list-style:none;margin:8px 0 0;padding:0 0 0 30px;position:relative}
+.route:before{content:"";position:absolute;left:10px;top:6px;bottom:6px;width:2px;background:var(--coral)}
+.route li{position:relative;padding:6px 0}
+.route li:before{content:attr(data-d);position:absolute;left:-30px;top:6px;width:22px;height:22px;border-radius:50%;background:var(--cream);border:2px solid var(--coral);font-size:.72rem;font-weight:700;display:grid;place-items:center}
+.route li.done:before{background:var(--coral);color:#3A0F0A}
+.route label{display:flex;gap:8px;font-weight:400;margin:0;cursor:pointer}
+.route input{width:auto;margin-top:5px}
+.route li.done span{text-decoration:line-through;opacity:.6}
+.fb{background:var(--peach);padding:12px 14px;border-radius:10px;margin-top:12px;border:2px solid var(--coral)}
+.wait{font-style:italic}
+.notes textarea{min-height:220px}
+.hide{display:none}
+footer{text-align:center;padding:20px;font-size:.9rem}
+</style>
+</head>
+<body>
+<main>
+<h1>JobMap AI</h1>
+<p class="sub">The map that tells you what to build next. Tell it the job you want. It finds your gaps, picks one project, suggests where to grow, plans 7 days, and changes the plan as you progress.</p>
+<div class="layout">
+  <aside class="side left">
+    <section id="grow" class="card hide">
+      <h2>Where to grow</h2>
+      <p id="owait" class="wait">Finding internships, events and activities...</p>
+      <ul id="opps" class="opps"></ul>
+      <p class="small">Ideas only. Always confirm dates and eligibility on the official page.</p>
+    </section>
+  </aside>
+  <div class="mid">
+    <section class="card">
+      <label for="job">Target job</label>
+      <input id="job" placeholder="e.g. Frontend developer" maxlength="200">
+      <label for="skills">Your skills</label>
+      <textarea id="skills" placeholder="e.g. HTML, CSS, basic JavaScript, Python"></textarea>
+      <label for="projects">Projects you have built</label>
+      <textarea id="projects" placeholder="e.g. A to-do app, a portfolio website"></textarea>
+      <button id="go">Find my next project</button>
+      <div id="err" class="err"></div>
+    </section>
+    <div id="out" class="hide" aria-live="polite">
+      <section class="card">
+        <h2>Where you stand</h2>
+        <p id="summary"></p>
+        <h3>Biggest gaps</h3>
+        <ul id="gaps" class="gaplist"></ul>
+      </section>
+      <section class="card accent">
+        <h2>Build this next</h2>
+        <div class="proj"><strong id="ptitle"></strong></div>
+        <div id="pwhy"></div>
+        <ul id="pfeat"></ul>
+      </section>
+      <section class="card">
+        <h2>Your 7-day route</h2>
+        <p class="small" style="margin-top:0">Tick what you finish.</p>
+        <p id="wait" class="wait hide">Building your 7-day route...</p>
+        <ol id="route" class="route"></ol>
+        <div id="adjbox" class="hide">
+          <label for="prog" style="margin-top:16px">How is it going?</label>
+          <textarea id="prog" placeholder="e.g. Day 1 and 2 done. Day 3 was too hard for me."></textarea>
+          <button id="adj">Adjust my plan</button>
+          <div id="fb" class="fb hide"></div>
+        </div>
+      </section>
+    </div>
+  </div>
+  <aside class="side right">
+    <section class="card notes">
+      <h2>My notes</h2>
+      <textarea id="notes" placeholder="Write what you learn, links you find, or things to fix. Saved on this device only."></textarea>
+      <div id="saved" class="small">Saved in this browser only. Nothing is sent to a server.</div>
+    </section>
+  </aside>
+</div>
+</main>
+<footer>JobMap AI &middot; Built for Code for a Billion: Tech Employment for Youth</footer>
+<script>
+const $ = id => document.getElementById(id);
+let state = { job: "", skills: "", project: "", plan: [] };
+const NOTES_KEY = "jobmap-notes";
+try { $("notes").value = localStorage.getItem(NOTES_KEY) || ""; } catch (e) {}
+$("notes").oninput = () => {
+  try { localStorage.setItem(NOTES_KEY, $("notes").value); } catch (e) { $("saved").textContent = "Could not save notes in this browser."; }
+};
+
+async function call(path, body) {
+  const r = await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.error || "Something went wrong");
+  return d;
+}
+function list(el, items) {
+  el.replaceChildren(...(items || []).map(t => { const li = document.createElement("li"); li.textContent = t; return li; }));
+}
+function drawOpps(items) {
+  $("opps").replaceChildren(...items.map(x => {
+    const li = document.createElement("li");
+    const tag = document.createElement("span"); tag.className = "tag"; tag.textContent = x.type;
+    const t = document.createElement("strong"); t.textContent = x.title;
+    const why = document.createElement("div"); why.textContent = x.why;
+    const a = document.createElement("a"); a.textContent = "Find current listings";
+    a.href = "https://www.google.com/search?q=" + encodeURIComponent(x.query); a.target = "_blank"; a.rel = "noopener noreferrer";
+    li.append(tag, document.createElement("br"), t, why, a); return li;
+  }));
+}
+function drawRoute(plan, done = []) {
+  $("route").replaceChildren(...plan.map(p => {
+    const li = document.createElement("li"); li.dataset.d = p.day;
+    const lab = document.createElement("label");
+    const cb = document.createElement("input"); cb.type = "checkbox"; cb.value = p.day; cb.checked = done.includes(p.day);
+    const sp = document.createElement("span"); sp.textContent = p.task;
+    cb.onchange = () => li.classList.toggle("done", cb.checked);
+    li.classList.toggle("done", cb.checked);
+    lab.append(cb, sp); li.append(lab); return li;
+  }));
+}
+const doneDays = () => [...document.querySelectorAll("#route input:checked")].map(c => Number(c.value));
+
+$("go").onclick = async () => {
+  const job = $("job").value.trim(), skills = $("skills").value, projects = $("projects").value;
+  $("err").textContent = "";
+  if (!job) { $("err").textContent = "Please enter a target job."; return; }
+  $("go").disabled = true; $("go").textContent = "Finding your gaps...";
+  try {
+    const d = await call("/api/plan", { job, skills, projects });
+    const project = d.project.title + ": " + d.project.why;
+    state = { job, skills, project, plan: [] };
+    $("summary").textContent = d.summary; list($("gaps"), d.gaps);
+    $("ptitle").textContent = d.project.title; $("pwhy").textContent = d.project.why; list($("pfeat"), d.project.features);
+    $("route").replaceChildren(); $("opps").replaceChildren(); $("adjbox").classList.add("hide"); $("fb").classList.add("hide");
+    $("wait").classList.remove("hide"); $("owait").textContent = "Finding internships, events and activities..."; $("owait").classList.remove("hide");
+    $("out").classList.remove("hide"); $("grow").classList.remove("hide"); $("out").scrollIntoView({ behavior: "smooth" });
+    call("/api/opps", { job, skills, gaps: d.gaps })
+      .then(o => { drawOpps(o.items); $("owait").classList.add("hide"); })
+      .catch(() => { $("owait").textContent = "Could not load suggestions right now."; });
+    const r = await call("/api/route", { job, skills, project });
+    state.plan = r.plan; drawRoute(r.plan);
+    $("wait").classList.add("hide"); $("adjbox").classList.remove("hide");
+  } catch (e) { $("err").textContent = e.message; $("wait").classList.add("hide"); }
+  $("go").disabled = false; $("go").textContent = "Find my next project";
+};
+
+$("adj").onclick = async () => {
+  $("adj").disabled = true; $("adj").textContent = "Adjusting...";
+  try {
+    const done = doneDays();
+    const d = await call("/api/adjust", { job: state.job, project: state.project, plan: state.plan, done, note: $("prog").value });
+    state.plan = d.plan; drawRoute(d.plan, done);
+    $("fb").textContent = d.feedback;
+  } catch (e) { $("fb").textContent = e.message; }
+  $("fb").classList.remove("hide");
+  $("adj").disabled = false; $("adj").textContent = "Adjust my plan";
+};
+</script>
+</body>
+</html>
