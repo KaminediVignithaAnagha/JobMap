@@ -1,7 +1,8 @@
 # JobMap AI
 
 **The map that tells you what to build next.**
-
+**Try it out**
+https://jobmap-ai.aiic.workers.dev
 ## The problem
 Lakhs of Indian students finish tech degrees without a job. Many do not know which skills a role needs, and students in smaller towns and non-elite colleges often have no mentor. Courses tell them what to study, but projects are what get a first-job interview.
 
